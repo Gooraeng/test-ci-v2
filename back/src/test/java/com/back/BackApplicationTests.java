@@ -13,6 +13,7 @@ class BackApplicationTests {
     @DisplayName("dummy Test")
     void contextLoads() {
         int a = 1;
+
         assertThat(a).isEqualTo(2);
     }
 
