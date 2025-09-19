@@ -20,6 +20,7 @@ class BackApplicationTests {
     @DisplayName("dummy Test")
     void t2() {
         int a = 1;
+
         assertThat(a).isEqualTo(1);
     }
 }
