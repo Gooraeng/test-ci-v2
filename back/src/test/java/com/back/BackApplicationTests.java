@@ -11,10 +11,15 @@ class BackApplicationTests {
 
     @Test
     @DisplayName("dummy Test")
-    void contextLoads() {
+    void t1() {
         int a = 1;
-
         assertThat(a).isEqualTo(2);
     }
 
+    @Test
+    @DisplayName("dummy Test")
+    void t2() {
+        int a = 1;
+        assertThat(a).isEqualTo(1);
+    }
 }
