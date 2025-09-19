@@ -1,4 +1,4 @@
-name: Backend PR CI requested by ${{ github.actor }}
+name: Backend PR CI
 
 on:
   pull_request:
