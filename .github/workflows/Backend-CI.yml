@@ -14,10 +14,10 @@ on:
     paths:
       [
         ".github/workflows/**",
-        "${{ env.BACKEND_DIR }}/build.gradle.kts",
-        "${{ env.BACKEND_DIR }}/settings.gradle.kts",
-        "${{ env.BACKEND_DIR }}/src/**",
-        "${{ env.BACKEND_DIR }}/Dockerfile",
+        "back/build.gradle.kts",
+        "back/settings.gradle.kts",
+        "back/src/**",
+        "back/Dockerfile",
       ]
 
 # 동일 브랜치에서 연속 실행 방지
