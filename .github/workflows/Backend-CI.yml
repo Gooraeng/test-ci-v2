@@ -7,19 +7,15 @@ on:
       # TODO: 향후 dev 브랜치로 변경 예정
       - main
       - dev
-    types: [
-      opened,
-      reopened,
-      edited,
-      synchronize
-    ]
-    paths: [
-      '.github/workflows/**',
-      'back/build.gradle.kts',
-      'back/settings.gradle.kts',
-      'back/src/**',
-      'back/Dockerfile'
-    ]
+    types: [opened, reopened, edited, synchronize]
+    paths:
+      [
+        ".github/workflows/**",
+        "back/build.gradle.kts",
+        "back/settings.gradle.kts",
+        "back/src/**",
+        "back/Dockerfile",
+      ]
 
 permissions:
   checks: write
@@ -33,11 +29,31 @@ jobs:
       run:
         working-directory: ./back
     steps:
-      - name: Setup Backend Environment
-        uses: ./.github/actions/setup-backend
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: "graalvm"
+          java-version: "21"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        shell: bash
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-
 
       - name: Build with Gradle
-        run: ./gradlew build -x test --no-daemon
+        run: ./gradlew build -x test
 
   backend-test:
     name: Backend Test
@@ -48,15 +64,35 @@ jobs:
         working-directory: ./back
 
     steps:
-      - name: Setup Backend Environment
-        uses: ./.github/actions/setup-backend
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: "graalvm"
+          java-version: "21"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        shell: bash
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-
 
       - name: Execute Tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test
 
       - name: Generate JUnit Test Report
         uses: mikepenz/action-junit-report@v5
         if: success() || failure() # 항상 실행
         with:
-          report_paths: '**/build/test-results/test/TEST-*.xml'
-          comment: 'true'  # PR에 코멘트로 결과 남기기
+          report_paths: "**/build/test-results/test/TEST-*.xml"
+          comment: "true" # PR에 코멘트로 결과 남기기
