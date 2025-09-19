@@ -1,98 +1,74 @@
 name: Backend PR CI
 
+env:
+  BACKEND_DIR: back
+
 on:
   pull_request:
     branches:
-      # TODO: 개발 초기 github flow 적용으로 인해 main 브랜치의 PR로 적용
-      # TODO: 향후 dev 브랜치로 변경 예정
+      # 개발 초기 - main으로의 PR 시 검사
+      # 향후 dev로의 PR / dev -> main PR 시에도 검사
       - main
       - dev
-    types: [opened, reopened, edited, synchronize]
+    types: [opened, reopened, synchronize]
     paths:
       [
         ".github/workflows/**",
-        "back/build.gradle.kts",
-        "back/settings.gradle.kts",
-        "back/src/**",
-        "back/Dockerfile",
+        "${{ env.BACKEND_DIR }}/build.gradle.kts",
+        "${{ env.BACKEND_DIR }}/settings.gradle.kts",
+        "${{ env.BACKEND_DIR }}/src/**",
+        "${{ env.BACKEND_DIR }}/Dockerfile",
       ]
 
+# 동일 브랜치에서 연속 실행 방지
+concurrency:
+  group: ${{ github.workflow}}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 permissions:
+  contents: read
+  # mikepenz/action-junit-report 구동을 위한 최소 조건
   checks: write
-  pull-requests: write # PR에 코멘트 남기기 위해 필요
 
 jobs:
-  backend-build:
+  backend-ci:
     name: Backend Build
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./back
+        working-directory: ./${{ env.BACKEND_DIR }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # JDK 설정
+      # graalvm 21 사용
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
           distribution: "graalvm"
           java-version: "21"
+          cache: "gradle"
 
+      # Gradle 캐싱
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Gradle 실행 권한 부여
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-        shell: bash
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-
+      # Secret으로 부터 .env 생성
+      - name: Generate .env
+        run: |
+          printf "%s" "${{ secrets.DOT_ENV }}" > .env
 
-      - name: Build with Gradle
-        run: ./gradlew build -x test
+      - name: Execute Build and Tests
+        run: ./gradlew clean build test --no-daemon --warning-mode=all
 
-  backend-test:
-    name: Backend Test
-    needs: backend-build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./back
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: "graalvm"
-          java-version: "21"
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-        shell: bash
-
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-
-
-      - name: Execute Tests
-        run: ./gradlew test
-
+      # PR 실행 후 테스트 실행 결과 로깅 목적 Action
       - name: Generate JUnit Test Report
         uses: mikepenz/action-junit-report@v5
-        if: success() || failure() # 항상 실행
+        if: success() || failure() # 성공 여부 상관없이 실행
         with:
           report_paths: "**/build/test-results/test/TEST-*.xml"
-          comment: "true" # PR에 코멘트로 결과 남기기
