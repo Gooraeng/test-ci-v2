@@ -29,10 +29,4 @@ COPY --from=builder /app/build/libs/*.jar app.jar
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=80"
 
 # 실행할 JAR 파일 지정
-ENTRYPOINT [
-    "sh", "-c",
-    "exec",
-    "java $JAVA_OPTS -Dspring.profiles.active=prod",
-    "-jar",
-    "app.jar"
-]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -Dspring.profiles.active=prod -jar app.jar"]
