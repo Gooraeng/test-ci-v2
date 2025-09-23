@@ -1,0 +1,11 @@
+.idea
+.git
+.git.example
+.gitignore
+.dockerignore
+Dockerfile
+*.md
+*.sh
+*.yml
+build/
+scripts

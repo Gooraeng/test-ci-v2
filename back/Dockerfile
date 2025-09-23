@@ -5,6 +5,8 @@ FROM gradle:jdk-21-and-23-graal-jammy AS builder
 WORKDIR /app
 
 # Gradle build, Setting 파일 복사
+COPY gradlew .
+COPY gradle gradle
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 

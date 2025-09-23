@@ -124,7 +124,7 @@ variable "expose_rds_port" {
 variable "expose_npm_config" {
   description = "Nginx Proxy Manager 설정 페이지 외부 노출 여부"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "is_s3_private" {
