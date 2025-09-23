@@ -19,9 +19,9 @@ on:
     paths: [
       ".github/workflows/**",
       "back/.env",
-      "back/src/**"
-      "back/build.gradle.kts"
-      "back/settings.gradle.kts"
+      "back/src/**",
+      "back/build.gradle.kts",
+      "back/settings.gradle.kts",
       "back/Dockerfile"
     ]
     branches:
