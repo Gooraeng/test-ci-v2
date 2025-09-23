@@ -62,7 +62,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests()
                 .requestMatchers("/users-auth/**").permitAll() // Swagger 경로를 WebSecurityCustomizer로 제외했으므로 여기서 제거
                 .requestMatchers("/admin/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()
                 .and()
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
         return http.build();
