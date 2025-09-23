@@ -10,7 +10,14 @@ on:
       # 향후 dev로의 PR / dev -> main PR 시에도 검사
       - main
       - dev
-    types: [opened, reopened, synchronize]
+    types: [
+      # PR 생성 및 다시 오픈 시
+      opened, reopened,
+      # 최초 PR 제출 이후 작업 브랜치 push 발생 시
+      synchronize
+    ]
+
+    # 대상 경로의 수정 사항이 있을 때 동작
     paths:
       [
         ".github/workflows/**",
@@ -22,7 +29,7 @@ on:
 
 # 동일 브랜치에서 연속 실행 방지
 concurrency:
-  group: ${{ github.workflow}}-${{ github.ref }}-${{ github.event_name }}
+  group: backend-ci-${{ github.ref }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -32,12 +39,17 @@ permissions:
 
 jobs:
   backend-ci:
-    name: Backend Build
+    # 상단의 types 주석을 참고
+    name: Backend CI
     runs-on: ubuntu-latest
+
+    # 작업 디렉토리
     defaults:
       run:
         working-directory: ./${{ env.BACKEND_DIR }}
+
     steps:
+      # 소스 코드 가져오기
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -63,10 +75,11 @@ jobs:
         run: |
           printf "%s" "${{ secrets.DOT_ENV }}" > .env
 
+      # Gradle 빌드 및 테스트 진행
       - name: Execute Build and Tests
         run: ./gradlew clean build test --no-daemon --warning-mode=all
 
-      # PR 실행 후 테스트 실행 결과 로깅 목적 Action
+      # 테스트 실행 결과 로깅 Action
       - name: Generate JUnit Test Report
         uses: mikepenz/action-junit-report@v5
         if: success() || failure() # 성공 여부 상관없이 실행

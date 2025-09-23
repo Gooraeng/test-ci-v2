@@ -43,6 +43,14 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    implementation("io.awspring.cloud:spring-cloud-aws-starter-s3:3.3.0")
+
+    // Health Check 목적으로 사용됩니다.
+    // 엔드포인트 /actuator/health 가 점유됩니다.
+    // localhost:8080/actuator/health
+    // 정상 시 200 응답 반환
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
 }
 
 tasks.withType<Test> {
