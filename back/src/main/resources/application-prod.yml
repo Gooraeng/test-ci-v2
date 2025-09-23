@@ -3,7 +3,7 @@ spring:
   # EC2에 역할 부여를 하더라도 해당 값은 반드시 들어가야 합니다.
   datasource:
     url: jdbc:postgresql://${AWS_RDS_ENDPOINT}:${AWS_RDS_PORT}/${AWS_RDS_DB_NAME}
-    username: ${RDS_USERNAME}
+    username: ${AWS_RDS_USERNAME}
     password: ${PASSWORD_1}
     driver-class-name: org.postgresql.Driver
 
