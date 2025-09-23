@@ -1,27 +1,32 @@
 package com.back.domain.home;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
-@RequiredArgsConstructor
 public class HomeController {
 
-    private final S3Client s3Client;
+    private final Optional<S3Client> s3Client;
+
+    public HomeController(@Autowired(required = false) S3Client s3Client) {
+        this.s3Client = Optional.ofNullable(s3Client);
+    }
 
     @GetMapping("/buckets")
     public List<String> buckets() {
         return s3Client
-                .listBuckets()
-                .buckets()
-                .stream()
-                .map(Bucket::name)
-                .toList();
+                .map(client -> client.listBuckets()
+                        .buckets()
+                        .stream()
+                        .map(Bucket::name)
+                        .toList())
+                .orElse(List.of("S3 client not available"));
     }
 //
 //    @PostMapping("/upload")
