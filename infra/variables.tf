@@ -17,7 +17,7 @@ variable "back_domain" {
   type        = string
   # 25.09.19 개발 목적으로 설정
   # 추후 배포용으로 변경 예정
-  default     = "https://api.gooraeng.xyz"
+  default     = "api.gooraeng.xyz"
 }
 
 variable "front_domain" {
@@ -25,7 +25,7 @@ variable "front_domain" {
   type        = string
   # 25.09.19 개발 목적으로 설정
   # 추후 배포용으로 변경 예정
-  default     = "https://www.gooraeng.xyz"
+  default     = "www.gooraeng.xyz"
 }
 
 
