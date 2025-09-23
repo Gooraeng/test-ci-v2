@@ -138,6 +138,7 @@ jobs:
         uses: peterkimzz/aws-ssm-send-command@master
         env:
           DOT_ENV_CONTENT: ${{ secrets.DOT_ENV }}
+          NGINX_ADMIN_ID: ${{ secrets.NGNIX_ADMIN_EMAIL }}
         with:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -172,7 +173,11 @@ jobs:
             ENV_FILE="/tmp/relife.env"
 
             echo "🔹 Use image: ${IMAGE}"
-            docker pull "${IMAGE}"
+            if ! docker pull "${IMAGE}"; then
+              echo "❌ Failed to pull image: ${IMAGE}"
+              exit 1
+            fi
+            echo "✅ Successfully pulled image."
             
             # ---------------------------------------------------------
             # GitHub Secret으로 .env 파일 생성
@@ -194,7 +199,7 @@ jobs:
             # ---------------------------------------------------------
             TOKEN=$(curl -s -X POST http://127.0.0.1:81/api/tokens \
               -H "Content-Type: application/json" \
-              -d "{\"identity\": \"admin@npm.com\", \"secret\": \"${PASSWORD_1:-}\"}" | jq -r '.token')
+              -d "{\"identity\": \"${NGINX_ADMIN_ID:-}\", \"secret\": \"${PASSWORD_1:-}\"}" | jq -r '.token')
 
             # 토큰/도메인 검증(없으면 실패)
             [[ -n "${TOKEN}" && "${TOKEN}" != "null" ]] || { echo "NPM token issue failed"; exit 1; }
@@ -255,21 +260,43 @@ jobs:
 
             while (( ELAPSED < TIMEOUT )); do
               CODE=$(docker exec "${GREEN}" curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_IN}/actuator/health" || echo 000)
-              [[ "${CODE}" == "200" ]] && { echo "✅ ${GREEN} healthy"; break; }
+              if [[ "${CODE}" == "200" ]]; then
+                echo "✅ ${GREEN} is healthy"
+                break
+              fi
+            
+              echo "⏳ waiting for container... (${ELAPSED}/${TIMEOUT}s)"
               sleep "${INTERVAL}"
               ELAPSED=$((ELAPSED + INTERVAL))
             done
-            [[ "${CODE:-000}" == "200" ]] || { echo "❌ ${GREEN} health failed"; docker logs --tail=200 "${GREEN}" || true; docker rm -f "${GREEN}" || true; exit 1; }
+            
+            if [[ "${CODE:-000}" == "200" ]]; then
+              echo "❌ ${GREEN} health failed"
+              docker logs --tail=200 "${GREEN}" || true
+              docker rm -f "${GREEN}" || true
+              exit 1;
+            fi
 
             # ---------------------------------------------------------
             # 6) 업스트림 전환 (forward_host/forward_port만 업데이트)
             # ---------------------------------------------------------
             NEW_CFG=$(jq -n --arg host "${GREEN}" --argjson port ${PORT_IN} '{forward_host:$host, forward_port:$port}')
-            curl -s -X PUT "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
+            
+            HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null \
+              -X PUT "http://127.0.0.1:81/api/nginx/proxy-hosts/${PROXY_ID}" \
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Content-Type: application/json" \
-              -d "${NEW_CFG}" >/dev/null
-            echo "🔁 switch upstream → ${GREEN}:${PORT_IN}"
+              -d "${NEW_CFG}")
+              
+            if [[ "${HTTP_CODE}" -eq 200 || "${HTTP_CODE}" -eq 201 ]]; then
+              echo "✅ Upstream switch successful with status code ${HTTP_CODE}."
+            else
+              echo "❌ Failed to switch upstream! Received HTTP status code: ${HTTP_CODE}"
+              # [수정] 전환 실패 시, 새로 띄운 Green 컨테이너는 즉시 제거하고 실패 처리
+              docker logs --tail=200 "${GREEN}" || true
+              docker rm -f "${GREEN}" || true
+              exit 1
+            fi
 
             # ---------------------------------------------------------
             # 7) 이전 blue 종료(최초 배포면 생략) 및 임시 파일 삭제
@@ -277,11 +304,11 @@ jobs:
             if [[ "${BLUE}" != "none" ]]; then
               docker stop "${BLUE}" >/dev/null 2>&1 || true
               docker rm "${BLUE}" >/dev/null 2>&1 || true
-              echo "🧹 removed old blue: ${BLUE}"
+              echo "🧹 Removed old blue: ${BLUE}"
             fi
             
             rm -f "${ENV_FILE}"
-            echo "🧹 removed temporary env file."
+            echo "🧹 Removed temporary env file."
             
             # ---------------------------------------------------------
             # 8) 이미지 정리(현재 태그/ latest 제외) - 결과 없음도 오류 아님
