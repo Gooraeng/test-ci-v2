@@ -200,7 +200,7 @@ jobs:
             # ---------------------------------------------------------
             TOKEN=$(curl -s -X POST http://127.0.0.1:81/api/tokens \
               -H "Content-Type: application/json" \
-              -d "{\"identity\": \"${{ env.NGINX_ADMIN_EMAIL }}\", \"secret\": \"${PASSWORD_1:-}\"}" | jq -r '.token')
+              -d "{\"identity\": \"${{ env.NGINX_ADMIN_EMAIL }}\", \"secret\": \"${PASSWORD_1}\"}" | jq -r '.token')
 
             # 토큰/도메인 검증(없으면 실패)
             [[ -n "${TOKEN}" && "${TOKEN}" != "null" ]] || { echo "NPM token issue failed"; exit 1; }
@@ -246,7 +246,7 @@ jobs:
             docker run -d --name "${GREEN}" \
               --restart unless-stopped \
               --network "${NET}" \
-              --env-file "${ENV_FILE}"
+              --env-file "${ENV_FILE}" \
               -e TZ=Asia/Seoul \
               "${IMAGE}"
 
