@@ -271,7 +271,7 @@ jobs:
               ELAPSED=$((ELAPSED + INTERVAL))
             done
             
-            if [[ "${CODE:-000}" == "200" ]]; then
+            if [[ "${CODE:-000}" != "200" ]]; then
               echo "❌ ${GREEN} health failed"
               docker logs --tail=200 "${GREEN}" || true
               docker rm -f "${GREEN}" || true
