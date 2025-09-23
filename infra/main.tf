@@ -13,7 +13,6 @@ locals {
   npm_port   = 81
 
   ec2_user_data = templatefile("${path.module}/ec2_user_data.tpl", {
-    rds_endpoint       = aws_db_instance.postgres_rds_1.endpoint,
     password           = var.default_password,
     app_back_domain    = var.back_domain,
     app_front_domain   = var.front_domain,
@@ -21,7 +20,6 @@ locals {
     github_token       = var.github_token,
     nginx_admin_email  = var.nginx_admin_email,
     timezone           = var.timezone,
-    s3_bucket_name     = var.s3_bucket_name
   })
 
   all_protocol = "-1"
@@ -428,16 +426,6 @@ resource "aws_s3_bucket_public_access_block" "s3_1_public_access" {
   block_public_policy     = var.is_s3_private
   ignore_public_acls      = var.is_s3_private
   restrict_public_buckets = var.is_s3_private
-}
-
-resource "aws_s3_bucket_acl" "s3_1_acl" {
-  bucket = aws_s3_bucket.s3_1.id
-  acl    = var.is_s3_private ? "private" : "public-read"
-
-  depends_on = [
-    aws_s3_bucket_ownership_controls.s3_1_ownership,
-    aws_s3_bucket_public_access_block.s3_1_public_access
-  ]
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "s3_1_encryption" {

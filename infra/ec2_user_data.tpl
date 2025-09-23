@@ -38,7 +38,7 @@ docker run -d \
 -p 80:80 \
 -p 443:443 \
 -p 81:81 \
--e TZ=Asia/Seoul \
+-e TZ=${timezone} \
 -e INITIAL_ADMIN_EMAIL=${nginx_admin_email} \
 -e INITIAL_ADMIN_PASSWORD=${password} \
 -v /dockerProjects/npm_1/volumes/data:/data \

@@ -6,3 +6,4 @@
 **/secrets.tf
 **/README_LOCAL.md
 **/*.tfvars
+.idea/
