@@ -287,7 +287,7 @@ resource "aws_instance" "ec2_1" {
 
   # 인스턴스에 태그 설정
   tags = {
-    Name = "${var.prefix}-ec2"
+    Name = "${var.prefix}-ec2-1"
   }
 
   # 루트 볼륨 설정

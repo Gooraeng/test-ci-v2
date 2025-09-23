@@ -36,7 +36,6 @@ permissions:
 defaults:
   run:
     shell: bash
-    working-directory: back
 
 jobs:
   # ---------------------------------------------------------
