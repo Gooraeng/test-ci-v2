@@ -2,16 +2,7 @@ terraform {
   // aws 라이브러리 불러옴
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "3.7.2"
-    }
-    awscc = {
-      source  = "hashicorp/awscc"
-      version = "1.43.0"
+      source = "hashicorp/aws"
     }
   }
 }
@@ -341,7 +332,7 @@ resource "aws_db_instance" "postgres_rds_1" {
 
   # 엔진 설정
   engine         = "postgres"
-  engine_version = "17.4"
+  engine_version = "17.6"
   instance_class = "db.t3.micro"  # 프리 티어
   port           = var.db_port
 
@@ -361,15 +352,12 @@ resource "aws_db_instance" "postgres_rds_1" {
   publicly_accessible    = true
 
   # 백업 설정 (프리 티어)
-  backup_retention_period = 7
+  backup_retention_period = 1
 
   # 개발 환경 설정
   skip_final_snapshot       = true
   deletion_protection       = false
-  auto_minor_version_upgrade = true
-
-  # 시간대 설정
-  timezone = var.timezone
+  auto_minor_version_upgrade = false
 
   # 파라미터 그룹
   parameter_group_name = aws_db_parameter_group.postgres_rds_1_param_group.name
@@ -409,17 +397,14 @@ resource "aws_s3_bucket_ownership_controls" "s3_1_ownership" {
   bucket = aws_s3_bucket.s3_1.id
 
   rule {
-    object_ownership = var.enable_s3_acl
-      ? "BucketOwnerPreferred" # ACL 활성화를 원한다면
-      : "BucketOwnerEnforced"  # ACL 비활성화 (권장)
+    # true: ACL 활성화, false: ACL 비활성화 (권장)
+    object_ownership = var.enable_s3_acl ? "BucketOwnerPreferred" : "BucketOwnerEnforced"
   }
 }
 
 # S3 버킷 정책 설정 (퍼블릭 읽기 허용)
 # is_s3_private 변수가 false일 때만 적용
 resource "aws_s3_bucket_policy" "s3_1_policy" {
-  count = var.is_s3_private ? 0 : 1
-
   bucket = aws_s3_bucket.s3_1.id
   policy = jsonencode({
     Version = "2012-10-17",
@@ -427,12 +412,7 @@ resource "aws_s3_bucket_policy" "s3_1_policy" {
       {
         Effect = "Allow",
         Principal = "*",
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListObject"
-        ],
+        Action = "s3:GetObject",
         Resource = "${aws_s3_bucket.s3_1.arn}/*"
       }
     ]
