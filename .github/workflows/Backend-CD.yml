@@ -186,7 +186,7 @@ jobs:
             echo "🔐 Creating .env file from GitHub Secret..."
             # GitHub Actions에서 secrets.DOT_ENV 값을 받아와 파일로 쓴다.
             # 특수문자 문제를 피하기 위해 printf와 히어독(here-doc)을 사용한다.
-            printf '%s' "${DOT_ENV_CONTENT}" > "${ENV_FILE}"
+            printf '%s' "${{ env.DOT_ENV_CONTENT }}" > "${ENV_FILE}"
   
             if [[ ! -s "${ENV_FILE}" ]]; then
               echo "❌ Failed to create env file from secret or it is empty."
