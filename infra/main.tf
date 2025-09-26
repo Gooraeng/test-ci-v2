@@ -272,7 +272,7 @@ resource "aws_instance" "ec2_1" {
   # 사용할 AMI ID
   ami = data.aws_ami.latest_amazon_linux.id
   # EC2 인스턴스 유형
-  instance_type = "t3.micro"
+  instance_type = "t3.small"
   # 사용할 서브넷 ID
   subnet_id = aws_subnet.subnet_2.id
   # 적용할 보안 그룹 ID
@@ -290,13 +290,12 @@ resource "aws_instance" "ec2_1" {
 
   # 루트 볼륨 설정
   root_block_device {
-    volume_type = "gp3"
-    volume_size = 20 # 볼륨 크기를 15GB로 설정
+    volume_type = "gp2"
+    volume_size = 30 # 볼륨 크기를 30GB로 설정
   }
 
   user_data = local.ec2_user_data
 }
-
 
 ###############
 # EIP 설정
@@ -308,8 +307,6 @@ resource "aws_eip" "ec2_1_eip" {
     Name = "${var.prefix}-ec2-eip"
   }
 }
-
-####
 
 ###############
 # RDS 설정
@@ -409,7 +406,9 @@ resource "aws_s3_bucket_policy" "s3_1_policy" {
     Statement = [
       {
         Effect = "Allow",
-        Principal = "*",
+        Principal = {
+          AWS = aws_cloudfront_origin_access_identity.oai_1.iam_arn
+        },
         Action = "s3:GetObject",
         Resource = "${aws_s3_bucket.s3_1.arn}/*"
       }
@@ -438,4 +437,89 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "s3_1_encryption" 
 
     bucket_key_enabled = var.bucket_key_enabled
   }
+}
+
+##################
+# CloudFront 설정
+##################
+resource "aws_cloudfront_distribution" "s3_distribution" {
+  enabled = true
+
+  origin {
+    domain_name = aws_s3_bucket.s3_1.bucket_regional_domain_name
+    origin_id   = "S3-${aws_s3_bucket.s3_1.id}"
+
+    s3_origin_config {
+      origin_access_identity = aws_cloudfront_origin_access_identity.oai_1.cloudfront_access_identity_path
+    }
+  }
+
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-${aws_s3_bucket.s3_1.id}"
+    viewer_protocol_policy = "redirect-to-https"
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    # 캐시 설정
+    min_ttl     = 0
+    default_ttl = 86400
+    max_ttl     = 31536000
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  custom_error_response {
+    error_caching_min_ttl = 600
+    error_code            = 404
+  }
+
+  # 과금 정책
+  # PriceClass_100: 미국, 캐나다, 유럽
+  # PriceClass_200: PriceClass_100 + 아시아, 중동, 아프리카
+  # PriceClass_All: 전세계
+  price_class = "PriceClass_100"
+
+  tags = {
+    Name = "${var.prefix}-cloudfront-distribution"
+  }
+}
+
+resource "aws_cloudfront_origin_access_identity" "oai_1" {
+  comment = "${var.prefix}-s3-oai"
+}
+
+##################
+# Outputs
+##################
+output "ec2_public_ip" {
+    description = "EC2 Public IP"
+    value       = aws_eip.ec2_1_eip.public_ip
+    sensitive   = false
+}
+
+output "rds_endpoint" {
+    description = "RDS Endpoint"
+    value       = aws_db_instance.postgres_rds_1.endpoint
+    sensitive   = false
+}
+
+output "cloudfront_domain" {
+  description = "CloudFront Domain"
+  value       = aws_cloudfront_distribution.s3_distribution.domain_name
+  sensitive   = false
 }

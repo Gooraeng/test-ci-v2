@@ -109,12 +109,6 @@ variable "nginx_admin_email" {
 ##################
 # Toggles
 ##################
-variable "bucket_key_enabled" {
-  description = "S3 버킷 키 활성화 여부"
-  type        = bool
-  default     = true  # 화면에서 "활성화" 선택됨
-}
-
 variable "expose_rds_port" {
   description = "RDS 포트 외부 노출 여부. True로 설정하면 외부에서 접근 가능"
   type        = bool
@@ -127,10 +121,16 @@ variable "expose_npm_config" {
   default     = true
 }
 
+variable "bucket_key_enabled" {
+  description = "S3 버킷 키 활성화 여부"
+  type        = bool
+  default     = true  # 화면에서 "활성화" 선택됨
+}
+
 variable "is_s3_private" {
   description = "S3 버킷 퍼블릭 액세스 차단 해제 여부"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_s3_acl" {

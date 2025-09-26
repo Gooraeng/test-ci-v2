@@ -1,29 +1,47 @@
-name: deploy
+# 마지막 수정: 250924
+# 작성자: gooraeng
+
+# BEFORE YOU READ..
+# 아래의 사항은 250924 기준으로 변경사항 발생 시 수정될 수 있습니다.
+#
+# 1. 초기 CD는 패키지 생성 확인 목적으로 작성되어 항상 실패 할 예정입니다.
+# 2. 패키지 관리
+#  (1) 일관적 관리를 위해 조직의 리포지토리로 설정했습니다.
+#  (2) 생성된 Package는 env 와 같은 환경 변수가 담겨있지 않을 예정이므로 현재 public 공개를 검토 중입니다.
+#    * Private 결정 시 관리는 어떻게 할 것인가
+# 3. AWS SSM Send-Command 액션
+#  (1) 스크립트 전송이나 인증만 잘 되면 스크립트 내용에 상관없이 Action은 성공으로 간주됩니다.
+#      내부적으로 EC2 상에서만 실패로 간주됩니다.
+#  (2) 따라서, 실제 성공 여부는 EC2 내부에서 별도로 생성되는 배포 과정을 담은 로그 파일에서 확인해야 합니다.
+
+name: Backend CD
 
 env:
-  IMAGE_REPOSITORY: onetop-relife # GHCR 이미지 리포지토리명(소유자 포함 X)
+  IMAGE_REPOSITORY: onetop-relife-be # GHCR 이미지 리포지토리명(소유자 포함 X)
   CONTAINER_1_NAME: relife_1 # 슬롯1(고정 이름)
   CONTAINER_2_NAME: relife_2 # 슬롯2(고정 이름)
   CONTAINER_PORT: 8080 # 컨테이너 내부 포트(스프링부트)
   EC2_INSTANCE_TAG_NAME: relife-ec2-1 # 배포 대상 EC2 Name 태그
   DOCKER_NETWORK: common # 도커 네트워크
   BACKEND_DIR: back # Dockerfile 위치
-  PACKAGE_MANAGEMENT_MEMBER: "gooraeng"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }} # 커밋이 짧은 시간안에 몰려도 최신 커밋에 대해서만 액션이 수행되도록
-  cancel-in-progress: false # 기존에 시작된 작업은 새 커밋이 들어왔다고 해서 바로 끄지 않고 끝날때까지 대기
+  # 같은 브랜치에서 여러 커밋이 몰려도 동일한 그룹으로 관리
+  group: relife-backend-cd-${{ github.workflow }}-${{ github.ref }}
+  # 기존 작업은 새 커밋이 들어오더라도 바로 종료하지 않고 끝날 때 까지 대기
+  # 예) tag는 있는데 package가 없는 상황
+  cancel-in-progress: false
 
 on:
   push:
     paths: [
-      ".github/workflows/**",
-      "back/.env",
+      ".github/workflows/Backend-CD.yml",
       "back/src/**",
       "back/build.gradle.kts",
       "back/settings.gradle.kts",
       "back/Dockerfile"
     ]
+    # TODO: 향후 Git flow 전략 적용 시 논의 필요
     branches:
       - main
 
@@ -32,7 +50,7 @@ permissions:
   contents: write # 태그/릴리즈
   packages: write # GHCR 푸시
 
-# 기본 셸
+# 기본 Shell
 defaults:
   run:
     shell: bash
@@ -69,6 +87,46 @@ jobs:
           prerelease: false
 
   # ---------------------------------------------------------
+  # 2) CI 이후 업로드 된 Artifact의 run_id 추출
+  # ---------------------------------------------------------
+  findCorrespondingCIrun:
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find_run.outputs.run_id }}
+    steps:
+      - name: 연관있는 PR 및 CI workflow 실행 찾기
+        id: find_run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. 현재 push를 유발한 커밋(merge commit) SHA 가져오기
+          MERGE_COMMIT_SHA=${{ github.sha }}
+          echo "Merge commit SHA: $MERGE_COMMIT_SHA"
+
+          # 2. 커밋 SHA를 이용해 병합된 PR 번호 찾기
+          PR_NUMBER=$(gh pr list --search "$MERGE_COMMIT_SHA" --state merged --json number --jq '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "⚠️ Could not find a merged PR for this commit"
+            exit 1
+          fi
+          echo "✅ Found PR number: $PR_NUMBER"
+
+          # 3. PR의 마지막 커밋(head SHA) 알아내기
+          PR_HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')
+          echo "PR head SHA: $PR_HEAD_SHA"
+
+          # 4. PR의 마지막 커밋과 CI 워크플로우 파일 이름을 이용해 성공한 CI 실행(run)의 ID 찾기
+          # `ci.yml`은 CI 워크플로우 파일명과 일치해야 합니다.
+          RUN_ID=$(gh run list --workflow="Backend-CI.yml" --commit="$PR_HEAD_SHA" --status=success --json databaseId --jq '.[0].databaseId')
+          if [ -z "$RUN_ID" ]; then
+            echo "⚠️ Could not find a successful CI run for this PR."
+            exit 1
+          fi
+          echo "✅ Found CI run ID: $RUN_ID"
+
+          # 5. 찾은 RUN_ID를 output으로 내보내기
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+  # ---------------------------------------------------------
   # 2) 도커 이미지 빌드/푸시 (캐시 최대 활용)
   # ---------------------------------------------------------
   buildImageAndPush:
@@ -78,15 +136,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: CI 상에서 나온 Artifact 다운로드
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          # 앞 단계에서 찾은 run_id 사용
+          workflow: Backend-CI.yml
+          run_id: ${{ needs.findCorrespondingCIrun.outputs.run_id }}
+          name: relife-backend-jar
+          path: '/${{ env.BACKEND_DIR }}/dist' # BACKEND_DIR 기준
+
       - name: Docker Buildx 설치
         uses: docker/setup-buildx-action@v3
 
-      # GHCR 로그인
       - name: 레지스트리 로그인
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ env.PACKAGE_MANAGEMENT_MEMBER }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # 저장소 소유자명을 소문자로 (GHCR 경로 표준화)
@@ -94,7 +160,7 @@ jobs:
         run: |
           echo "OWNER_LC=${OWNER,,}" >> "${GITHUB_ENV}"
         env:
-          OWNER: ${{ env.PACKAGE_MANAGEMENT_MEMBER }}
+          OWNER: ${{ github.repository_owner }}
 
       # 캐시를 최대한 활용하여 빌드 → 버전태그 및 latest 동시 푸시
       - name: 빌드 앤 푸시
@@ -134,7 +200,7 @@ jobs:
           echo "INSTANCE_ID=${INSTANCE_ID}" >> "${GITHUB_ENV}"
 
       # 원격(SSM)으로 Blue/Green 스위치 수행
-      - name: AWS SSM Send-Command
+      - name: AWS 배포 실행
         uses: peterkimzz/aws-ssm-send-command@master
         env:
           DOT_ENV_CONTENT: ${{ secrets.DOT_ENV }}
@@ -162,8 +228,8 @@ jobs:
             #    - blue/green은 "역할"이며 매 배포마다 바뀜
             # ---------------------------------------------------------
             source /etc/environment || true   # 시스템 전역 변수(+ 비밀) 주입 시도
-            OWNER_LC="${{ env.PACKAGE_MANAGEMENT_MEMBER }}"
-            OWNER_LC="${OWNER_LC,,}"          # 소문자 표준화
+            OWNER_LC="${{ github.repository_owner }}"
+            OWNER_LC="${OWNER_LC,,}"
             IMAGE_TAG="${{ needs.createTagAndRelease.outputs.tag_name }}"
             IMAGE_REPOSITORY="${{ env.IMAGE_REPOSITORY }}"
             IMAGE="ghcr.io/${OWNER_LC}/${IMAGE_REPOSITORY}:${IMAGE_TAG}"
@@ -181,19 +247,19 @@ jobs:
             echo "✅ Successfully pulled image."
             
             # ---------------------------------------------------------
-            # GitHub Secret으로 .env 파일 생성
+            # GitHub Secret으로 임시 .env 파일 생성
             # ---------------------------------------------------------
             echo "🔐 Creating .env file from GitHub Secret..."
             # GitHub Actions에서 secrets.DOT_ENV 값을 받아와 파일로 쓴다.
             # 특수문자 문제를 피하기 위해 printf와 히어독(here-doc)을 사용한다.
             printf '%s' "${{ env.DOT_ENV_CONTENT }}" > "${ENV_FILE}"
-  
+            
             if [[ ! -s "${ENV_FILE}" ]]; then
               echo "❌ Failed to create env file from secret or it is empty."
               exit 1
             fi
             echo "✅ Successfully created env file."
-          
+            
             # ---------------------------------------------------------
             # 2) Nginx Proxy Manager(NPM) API 토큰 발급
             #     - /etc/environment 등에 설정된 PASSWORD_1, APP_BACK_DOMAIN 사용 가정
@@ -288,7 +354,7 @@ jobs:
               -H "Authorization: Bearer ${TOKEN}" \
               -H "Content-Type: application/json" \
               -d "${NEW_CFG}")
-              
+
             if [[ "${HTTP_CODE}" -eq 200 || "${HTTP_CODE}" -eq 201 ]]; then
               echo "✅ Upstream switch successful with status code ${HTTP_CODE}."
             else
@@ -323,4 +389,4 @@ jobs:
                 | xargs -r docker rmi
             } || true
 
-            echo "🏁 Blue/Green switch complete. now blue = ${GREEN}"
+            echo "🏁 Blue/Green switch complete. now blue is ${GREEN}"

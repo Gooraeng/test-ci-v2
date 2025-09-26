@@ -4,7 +4,3 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
-
-  autoconfigure:
-    exclude:
-      - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration

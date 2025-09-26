@@ -54,21 +54,22 @@ jobs:
         uses: actions/checkout@v4
 
       # JDK 설정
-      # graalvm 21 사용
+      # Amazon Corretto 21 사용 (Docker와 일치)
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
-          distribution: "graalvm"
+          distribution: "corretto"
           java-version: "21"
-          cache: "gradle"
 
-      # Gradle 캐싱
+      # Gradle 셋업
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/gradle-build-action@v3
+        with:
+          cache-read-only: false
 
-      # Gradle 실행 권한 부여
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      # Gradle 실행 권한 부여 (Set up gradle에서
+      # - name: Grant execute permission for gradlew
+      #   run: chmod +x gradlew
 
       # Secret으로 부터 .env 생성
       - name: Generate .env
@@ -76,12 +77,29 @@ jobs:
           printf "%s" "${{ secrets.DOT_ENV }}" > .env
 
       # Gradle 빌드 및 테스트 진행
-      - name: Execute Build and Tests
-        run: ./gradlew clean build test --no-daemon --warning-mode=all
+      - name: Execute Build
+        run: ./gradlew clean build -x test --warning-mode=all --build-cache
+
+      - name: Execute Tests
+        id: back-test
+        run: ./gradlew test --info
 
       # 테스트 실행 결과 로깅 Action
       - name: Generate JUnit Test Report
         uses: mikepenz/action-junit-report@v5
-        if: success() || failure() # 성공 여부 상관없이 실행
+        if: always()
         with:
           report_paths: "**/build/test-results/test/TEST-*.xml"
+
+      - name: Copy JAR file to dist
+        if: success()
+        run: |
+          mkdir -p dist
+          cp $(ls build/libs/*.jar | grep -v plain | head -n 1) dist/app.jar
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: relife-backend-jar
+          path: dist/app.jar
