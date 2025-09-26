@@ -90,7 +90,6 @@ jobs:
           report_paths: "**/build/test-results/test/TEST-*.xml"
 
       - name: Copy JAR file to dist directory
-        working-directory: backend
         run: |
           mkdir -p dist
           cp $(ls build/libs/*.jar | grep -v plain | head -n 1) dist/app.jar
