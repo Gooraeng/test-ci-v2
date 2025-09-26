@@ -45,4 +45,14 @@ docker run -d \
 -v /dockerProjects/npm_1/volumes/etc/letsencrypt:/etc/letsencrypt \
 jc21/nginx-proxy-manager:latest
 
+# redis
+docker run -d \
+--name=redis_1 \
+--restart unless-stopped \
+--network common \
+-p 6379:6379 \
+-e TZ=${timezone} \
+-v /dockerProjects/redis_1/volumes/data:/data \
+redis --requirepass ${password}
+
 echo "${github_token}" | docker login ghcr.io -u ${github_token_owner} --password-stdin
