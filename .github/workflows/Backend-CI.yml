@@ -23,7 +23,7 @@ on:
     # 대상 경로의 수정 사항이 있을 때 동작
     paths:
       [
-        ".github/workflows/**",
+        ".github/workflows/Backend-CI.yml",
         "back/build.gradle.kts",
         "back/settings.gradle.kts",
         "back/src/**",
