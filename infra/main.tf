@@ -25,13 +25,16 @@ locals {
   all_protocol = "-1"
 }
 
-# AWS 설정 시작
+################
+# AWS 설정
+################
 provider "aws" {
   region = var.region
 }
-# AWS 설정 끝
 
-# VPC 설정 시작
+############
+# VPC 설정
+############
 resource "aws_vpc" "vpc_1" {
   cidr_block = "10.0.0.0/16"
 
@@ -43,6 +46,9 @@ resource "aws_vpc" "vpc_1" {
   }
 }
 
+##############
+# Subnet 설정
+##############
 resource "aws_subnet" "subnet_1" {
   vpc_id                  = aws_vpc.vpc_1.id
   cidr_block              = "10.0.0.0/24"
@@ -87,6 +93,9 @@ resource "aws_subnet" "subnet_4" {
   }
 }
 
+####################
+# 인터넷 게이트웨이
+####################
 resource "aws_internet_gateway" "igw_1" {
   vpc_id = aws_vpc.vpc_1.id
 
@@ -95,6 +104,9 @@ resource "aws_internet_gateway" "igw_1" {
   }
 }
 
+##################
+# 라우팅 테이블
+##################
 resource "aws_route_table" "rt_1" {
   vpc_id = aws_vpc.vpc_1.id
 
@@ -108,6 +120,9 @@ resource "aws_route_table" "rt_1" {
   }
 }
 
+################################
+# 서브넷 <-> 라우팅 테이블 연결
+################################
 resource "aws_route_table_association" "association_1" {
   subnet_id      = aws_subnet.subnet_1.id
   route_table_id = aws_route_table.rt_1.id
@@ -128,8 +143,11 @@ resource "aws_route_table_association" "association_4" {
   route_table_id = aws_route_table.rt_1.id
 }
 
+######################
+# 기본 Security Group
+######################
 resource "aws_security_group" "sg_1" {
-  name = "${var.prefix}-security-group"
+  name   = "${var.prefix}-security-group"
   vpc_id = aws_vpc.vpc_1.id
 
   #################################
@@ -178,15 +196,58 @@ resource "aws_security_group" "sg_1" {
   # EGRESS : 외부로 통신
   #################################
   egress {
-    from_port = 0
-    to_port   = 0
-    protocol  = local.all_protocol
+    from_port   = 0
+    to_port     = 0
+    protocol    = local.all_protocol
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
     Name = "${var.prefix}-security-group"
   }
+}
+
+########################
+# EC2 <-> RDS 보안 그룹
+########################
+resource "aws_security_group" "ec2_to_rds_connection" {
+  name        = "${var.prefix}-security-group-ec2-to-rds"
+  description = "EC2 -> RDS 트래픽 허용하는 트래픽 "
+  vpc_id      = aws_vpc.vpc_1.id
+
+  tags = {
+    Name = "${var.prefix}-security-group-ec2-to-rds"
+  }
+}
+
+resource "aws_security_group" "rds_to_ec2_connection" {
+  name        = "${var.prefix}-security-group-rds-to-ec2"
+  vpc_id      = aws_vpc.vpc_1.id
+  description = "RDS -> EC2 트래픽 허용하는 트래픽"
+
+  tags = {
+    Name = "${var.prefix}-security-group-rds-to-ec2"
+  }
+}
+
+resource "aws_security_group_rule" "ec2_to_rds_connection_rule" {
+  type = "ingress"
+
+  from_port         = var.db_port
+  to_port           = var.db_port
+  protocol          = "tcp"
+  source_security_group_id = aws_security_group.ec2_to_rds_connection.id
+  security_group_id = aws_security_group.rds_to_ec2_connection.id
+}
+
+resource "aws_security_group_rule" "rds_to_ec2_connection_rule" {
+  type = "egress"
+
+  from_port         = var.db_port
+  to_port           = var.db_port
+  protocol          = "tcp"
+  source_security_group_id = aws_security_group.rds_to_ec2_connection.id
+  security_group_id = aws_security_group.ec2_to_rds_connection.id
 }
 
 ###############
@@ -205,7 +266,7 @@ resource "aws_iam_role" "ec2_role_1" {
         Sid = "",
         Action = "sts:AssumeRole",
         Principal = {
-            Service = "ec2.amazonaws.com"
+          Service = "ec2.amazonaws.com"
         },
         Effect = "Allow"
       }
@@ -217,6 +278,9 @@ resource "aws_iam_role" "ec2_role_1" {
   }
 }
 
+####################
+# EC2 - Policy 설정
+####################
 # EC2 역할에 AmazonS3FullAccess 정책을 부착
 # 생성된 인스턴스는 S3에 대한 완전한 액세스 권한을 가짐.
 resource "aws_iam_role_policy_attachment" "s3_full_access" {
@@ -272,11 +336,14 @@ resource "aws_instance" "ec2_1" {
   # 사용할 AMI ID
   ami = data.aws_ami.latest_amazon_linux.id
   # EC2 인스턴스 유형
-  instance_type = "t3.small"
+  instance_type = "t3.micro"
   # 사용할 서브넷 ID
-  subnet_id = aws_subnet.subnet_2.id
+  subnet_id = aws_subnet.subnet_1.id
   # 적용할 보안 그룹 ID
-  vpc_security_group_ids = [aws_security_group.sg_1.id]
+  vpc_security_group_ids = [
+    aws_security_group.sg_1.id,
+    aws_security_group.ec2_to_rds_connection.id
+  ]
   # 퍼블릭 IP 연결 설정
   associate_public_ip_address = true
 
@@ -302,6 +369,7 @@ resource "aws_instance" "ec2_1" {
 ###############
 resource "aws_eip" "ec2_1_eip" {
   instance = aws_instance.ec2_1.id
+  domain = "vpc"
 
   tags = {
     Name = "${var.prefix}-ec2-eip"
@@ -343,8 +411,9 @@ resource "aws_db_instance" "postgres_rds_1" {
 
   # 네트워크 설정
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
-  vpc_security_group_ids = [aws_security_group.sg_1.id]
+  vpc_security_group_ids = [aws_security_group.sg_1.id, aws_security_group.rds_to_ec2_connection.id]
   publicly_accessible    = true
+  availability_zone      = "${var.region}a"  # EC2와 같은 AZ로 강제 배치
 
   # 백업 설정 (프리 티어)
   backup_retention_period = 1
@@ -507,15 +576,15 @@ resource "aws_cloudfront_origin_access_identity" "oai_1" {
 # Outputs
 ##################
 output "ec2_public_ip" {
-    description = "EC2 Public IP"
-    value       = aws_eip.ec2_1_eip.public_ip
-    sensitive   = false
+  description = "EC2 Public IP"
+  value       = aws_eip.ec2_1_eip.public_ip
+  sensitive   = false
 }
 
 output "rds_endpoint" {
-    description = "RDS Endpoint"
-    value       = aws_db_instance.postgres_rds_1.endpoint
-    sensitive   = false
+  description = "RDS Endpoint"
+  value       = aws_db_instance.postgres_rds_1.endpoint
+  sensitive   = false
 }
 
 output "cloudfront_domain" {
