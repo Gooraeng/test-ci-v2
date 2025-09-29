@@ -1,6 +1,3 @@
-import org.gradle.kotlin.dsl.annotationProcessor
-import org.gradle.kotlin.dsl.testAnnotationProcessor
-
 plugins {
     java
     id("org.springframework.boot") version "3.5.5"
@@ -55,13 +52,16 @@ dependencies {
     testAnnotationProcessor("io.github.openfeign.querydsl:querydsl-apt:7.0:jpa")
     testAnnotationProcessor("jakarta.persistence:jakarta.persistence-api")
 
-    implementation("io.awspring.cloud:spring-cloud-aws-starter-s3:3.3.0")
-
-    // Health Check 목적으로 사용됩니다.
-    // 엔드포인트 /actuator/health 가 점유됩니다.
-    // localhost:8080/actuator/health
-    // 정상 시 200 응답 반환
+    // Health Check
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+    // Migration
+    // TODO: Flyway 의존성 - 추후 주석 해제 예정
+     implementation("org.flywaydb:flyway-core:11.11.2")
+     runtimeOnly("org.flywaydb:flyway-database-postgresql:11.11.2")
+
+    // TODO: Redis 의존성 - 추후 주석 해제 예정
+     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 }
 
 tasks.withType<Test> {
