@@ -95,6 +95,10 @@ jobs:
     outputs:
       run_id: ${{ steps.find_run.outputs.run_id }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 전체 히스토리 필요
+
       - name: 연관있는 PR 및 CI workflow 실행 찾기
         id: find_run
         env:
