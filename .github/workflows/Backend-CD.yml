@@ -152,7 +152,7 @@ jobs:
           workflow: Backend-CI.yml
           run_id: ${{ needs.findCorrespondingCIrun.outputs.run_id }}
           name: relife-backend-jar
-          path: '/${{ env.BACKEND_DIR }}/dist' # BACKEND_DIR 기준
+          path: '${{ env.BACKEND_DIR }}/dist' # BACKEND_DIR 기준
 
       - name: Docker Buildx 설치
         uses: docker/setup-buildx-action@v3
