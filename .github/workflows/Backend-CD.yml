@@ -97,7 +97,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 전체 히스토리 필요
+          fetch-depth: 0 # .git 히스토리 가져오기
 
       - name: 연관있는 PR 및 CI workflow 실행 찾기
         id: find_run
