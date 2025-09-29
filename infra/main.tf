@@ -436,7 +436,7 @@ resource "aws_db_instance" "postgres_rds_1" {
 
   # 네트워크 설정
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
-  vpc_security_group_ids = [aws_security_group.rds_to_ec2_sg.id]
+  vpc_security_group_ids = [aws_security_group.rds_to_ec2_sg.id, aws_security_group.sg_1.id]
   publicly_accessible    = true # RDS 퍼블릭 액세스 설정 (개발 목적으로 한시적으로 허용)
   availability_zone      = "${var.region}a"  # EC2와 같은 AZ로 강제 배치
   multi_az               = false
