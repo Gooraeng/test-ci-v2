@@ -38,7 +38,3 @@ out/
 
 ### Environment Variables ###
 .env
-
-
-### DB Files ###
-*.db

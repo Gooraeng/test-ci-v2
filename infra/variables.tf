@@ -21,13 +21,19 @@ variable "back_domain" {
 }
 
 variable "front_domain" {
-  description = "backend domain"
+  description = "frontend domain"
   type        = string
   # 25.09.19 개발 목적으로 설정
   # 추후 배포용으로 변경 예정
   default     = "www.gooraeng.xyz"
 }
 
+# fixme: CDN 도메인 변수
+# variable "cdn_domain" {
+#   description = "cdn domain"
+#   type        = string
+#   default = "cdn.gooraeng.xyz"
+# }
 
 variable "encryption_type" {
   description = "S3 암호화 타입 (AES256, aws:kms)"
@@ -35,8 +41,8 @@ variable "encryption_type" {
   default     = "AES256"  # 프리티어에서는 AES256 권장
 
   validation {
-    condition     = contains(["AES256", "aws:kms"], var.encryption_type)
-    error_message = "encryption_type은 AES256 또는 aws:kms만 가능합니다."
+    condition     = contains(["AES256"], var.encryption_type)
+    error_message = "encryption_type은 AES256만 가능합니다."
   }
 }
 
@@ -109,12 +115,6 @@ variable "nginx_admin_email" {
 ##################
 # Toggles
 ##################
-variable "bucket_key_enabled" {
-  description = "S3 버킷 키 활성화 여부"
-  type        = bool
-  default     = true  # 화면에서 "활성화" 선택됨
-}
-
 variable "expose_rds_port" {
   description = "RDS 포트 외부 노출 여부. True로 설정하면 외부에서 접근 가능"
   type        = bool
@@ -127,10 +127,16 @@ variable "expose_npm_config" {
   default     = true
 }
 
+variable "bucket_key_enabled" {
+  description = "S3 버킷 키 활성화 여부"
+  type        = bool
+  default     = false  # 화면에서 "활성화" 선택됨
+}
+
 variable "is_s3_private" {
   description = "S3 버킷 퍼블릭 액세스 차단 해제 여부"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_s3_acl" {

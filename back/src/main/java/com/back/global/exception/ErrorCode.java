@@ -26,6 +26,7 @@ public enum ErrorCode {
     LOGIN_ID_DUPLICATION(HttpStatus.BAD_REQUEST, "U003", "Login ID Duplication"),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "U004", "Invalid Password"),
     UNAUTHORIZED_USER(HttpStatus.UNAUTHORIZED, "U005", "Unauthorized User"),
+    NICKNAME_DUPLICATION(HttpStatus.CONFLICT, "U006", "이미 사용 중인 닉네임입니다."),
 
     // Post Errors
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "Post Not Found"),
@@ -48,6 +49,9 @@ public enum ErrorCode {
     SCENARIO_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "SC002", "Scenario Request Not Found"),
     SCENE_COMPARE_NOT_FOUND(HttpStatus.NOT_FOUND, "SC003", "Scene Compare Not Found"),
     SCENE_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "SC004", "Scene Type Not Found"),
+    SCENARIO_ALREADY_IN_PROGRESS(HttpStatus.CONFLICT, "SC005", "Scenario Already In Progress"),
+    BASE_SCENARIO_NOT_FOUND(HttpStatus.NOT_FOUND, "SC006", "Base Scenario Not Found"),
+    SCENARIO_TIMELINE_NOT_FOUND(HttpStatus.NOT_FOUND, "SC007", "Scenario Timeline Not Found"),
 
     // Like Errors
     LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "Like Not Found"),

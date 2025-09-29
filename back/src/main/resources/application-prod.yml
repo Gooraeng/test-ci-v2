@@ -9,7 +9,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     # 성능 향상을 위해 설정을 끕니다
     open-in-view: false
     show-sql: false
@@ -17,6 +17,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
+        highlight_sql: false
         use_sql_comments: false
 #    hikari:
 #      maximum-pool-size: 80 # RDS 최대 커넥션 풀 ()
@@ -35,3 +36,16 @@ logging:
     org.springframework.security.oauth2: INFO
     org.springframework.security.web: INFO
     com.back: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  server:
+    port: 8090
