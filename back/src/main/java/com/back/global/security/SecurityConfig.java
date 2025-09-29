@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/users-auth/**", "/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMathers("/actuator/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .logout(logout -> logout
