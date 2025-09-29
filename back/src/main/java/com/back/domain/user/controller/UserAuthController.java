@@ -39,10 +39,10 @@ public class UserAuthController {
     private final GuestService guestService;
 
     @PostMapping("/signup")
-    public ResponseEntity<UserResponse> signup(@Valid @RequestBody SignupRequest req){
+    public ResponseEntity<ApiResponse<UserResponse>> signup(@Valid @RequestBody SignupRequest req){
         User saved = userService.signup(req);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(UserResponse.from(saved));
+                .body(ApiResponse.success(UserResponse.from(saved), "성공적으로 생성되었습니다."));
     }
 
     @PostMapping("/login")
