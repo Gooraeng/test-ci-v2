@@ -21,6 +21,7 @@ env:
   CONTAINER_1_NAME: relife_1 # 슬롯1(고정 이름)
   CONTAINER_2_NAME: relife_2 # 슬롯2(고정 이름)
   CONTAINER_PORT: 8080 # 컨테이너 내부 포트(스프링부트)
+  HEALTH_CHECK_PORT: 8090 # 헬스체크용 포트(임시, 추후 필요 시)
   EC2_INSTANCE_TAG_NAME: relife-ec2-1 # 배포 대상 EC2 Name 태그
   DOCKER_NETWORK: common # 도커 네트워크
   BACKEND_DIR: back # Dockerfile 위치
@@ -236,6 +237,7 @@ jobs:
             SLOT1="${{ env.CONTAINER_1_NAME }}"
             SLOT2="${{ env.CONTAINER_2_NAME }}"
             PORT_IN="${{ env.CONTAINER_PORT }}"
+            HEALTH_PORT="${{ env.HEALTH_CHECK_PORT }}"
             NET="${{ env.DOCKER_NETWORK }}"
             ENV_FILE="/tmp/relife.env"
 
@@ -317,7 +319,7 @@ jobs:
               "${IMAGE}"
 
             # ---------------------------------------------------------
-            # 5) 헬스체크 (/actuator/health 200 OK까지 대기)
+            # 5) 헬스체크 (/actuator/health/readiness 200 OK까지 대기)
             # ---------------------------------------------------------
             echo "⏱ health-check: ${GREEN}"
             TIMEOUT=120
@@ -326,7 +328,7 @@ jobs:
             sleep 8  # 초기 부팅 여유
 
             while (( ELAPSED < TIMEOUT )); do
-              CODE=$(docker exec "${GREEN}" curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_IN}/actuator/health" || echo 000)
+              CODE=$(docker exec "${GREEN}" curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${HEALTH_PORT}/actuator/health/readiness" || echo 000)
               if [[ "${CODE}" == "200" ]]; then
                 echo "✅ ${GREEN} is healthy"
                 break
