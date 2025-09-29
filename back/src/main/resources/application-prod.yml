@@ -1,6 +1,8 @@
 spring:
   # AWS RDS(PostgreSQL) 관련 설정
   # EC2에 역할 부여를 하더라도 해당 값은 반드시 들어가야 합니다.
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     url: jdbc:postgresql://${AWS_RDS_ENDPOINT}:${AWS_RDS_PORT}/${AWS_RDS_DB_NAME}?sslmode=require
     username: ${AWS_RDS_USERNAME}
