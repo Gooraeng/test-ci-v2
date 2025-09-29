@@ -141,6 +141,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create dist directory
+        working-directory: back
+        run: mkdir -p dist
+
       - name: CI 상에서 나온 Artifact 다운로드
         uses: dawidd6/action-download-artifact@v6
         with:
