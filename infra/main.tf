@@ -219,6 +219,62 @@ resource "aws_security_group" "sg_1" {
   })
 }
 
+########################
+# EC2 <-> RDS 보안 그룹
+# 참고 - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/ec2-rds-connect.html
+########################
+# 1. EC2 -> RDS
+resource "aws_security_group" "ec2_to_rds_sg" {
+  name        = "ec2-rds-1"
+  vpc_id      = aws_vpc.vpc_1.id
+
+  description = "Security group for EC2 to RDS communication"
+
+  tags = merge(local.common_tags, {
+    Name = "${var.prefix}-security-group-ec2-to-rds"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "ec2_to_rds_rule" {
+  security_group_id = aws_security_group.ec2_to_rds_sg.id
+  description = "EC2 to RDS egress rule"
+
+  from_port                    = var.db_port
+  to_port                      = var.db_port
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.rds_to_ec2_sg.id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.prefix}-ec2-to-rds-egress-rule"
+  })
+}
+
+# 2. RDS -> EC2
+resource "aws_security_group" "rds_to_ec2_sg" {
+  name        = "rds-ec2-1"
+  vpc_id      = aws_vpc.vpc_1.id
+
+  description = "Security group for RDS to EC2 communication"
+
+  tags = merge(local.common_tags, {
+    Name = "${var.prefix}-security-group-rds-to-ec2"
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "rds_to_ec2_rule" {
+  security_group_id = aws_security_group.rds_to_ec2_sg.id
+  description       = "RDS to EC2 ingress rule"
+
+  from_port                    = var.db_port
+  to_port                      = var.db_port
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.ec2_to_rds_sg.id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.prefix}-rds-to-ec2-ingress-rule"
+  })
+}
+
 ###############
 # EC2 설정
 ###############

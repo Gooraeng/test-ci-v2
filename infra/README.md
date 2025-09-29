@@ -268,7 +268,7 @@ terraform destroy
 ```
 
 #### 4. `terraform apply` 완료 이후
-* RDS <-> 보안 그룹 설정
+* RDS <-> 보안 그룹 설정 (스크립트가 제대로 동작하지 않을 수 있으므로 직접 설정을 권장합니다.)
 * EC2 인스턴스에 접속(대시보드 Session Manager로 접속 권장)하여 어플리케이션 설정
   * ghcr.io 로그인 확인
   * Redis 확인
